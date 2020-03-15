@@ -1,0 +1,84 @@
+---
+title: "Growth Factor in Shanghai"
+output: bookdown::html_document2
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	fig.keep = "last",
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+
+```{r}
+library(tidyverse)
+library(fs)
+```
+
+```{r}
+# "../src/utils.py"
+df <- read_csv("../data/daily.csv")
+```
+
+```{r}
+shanghai_df <- df %>%
+    filter(lubridate::month(updateDate) >= 2) %>%
+    filter(provinceName %>% str_detect('上海')) %>%
+    group_by(updateDate) %>%
+    summarise(confirmed = sum(confirmed)) %>%
+    ungroup() %>%
+    arrange(updateDate) %>%
+    mutate(
+        growth_rate = log(confirmed),
+        growth_rate = c(NA, diff(growth_rate)),
+        growth_factor = c(NA, diff(confirmed)),
+        growth_factor = growth_factor / lag(growth_factor)
+    )
+p1 <-
+    shanghai_df %>%
+    ggplot() +
+    aes(x = updateDate, y = confirmed) +
+    geom_smooth(color = add2ggplot::red_one, linetype = 3) +
+    geom_line(color = add2ggplot::red_one) +
+    add2ggplot::theme_grey_and_red()
+p2 <-
+    shanghai_df %>%
+    ggplot() +
+    aes(x = updateDate, y = growth_factor) +
+    geom_smooth(color = add2ggplot::red_one, linetype = 3) +
+    geom_line(color = add2ggplot::red_one) +
+    add2ggplot::theme_grey_and_red()
+```
+
+```{r}
+p1 +
+    labs(
+        y = '累计量',
+        x = '更新日期',
+        caption = '备注: 虚线为拟合线',
+        title = '上海地区日增长率'
+    ) +
+    scale_x_date(date_breaks = "1 day", date_labels = "%m-%d(周%w)") +
+    theme(axis.text.x = element_text(angle = 90))
+image_path <- here::here("output/shanghai-amount.png")
+    ggsave(image_path,
+           height = 5,
+           width = 10)
+knitr::include_graphics(image_path)
+p2 +
+    labs(
+        y = '增长因素',
+        x = '更新日期',
+        caption = '备注: 虚线为拟合线',
+        title = '上海地区 growth factor'
+    ) +
+    scale_x_date(date_breaks = "1 day", date_labels = "%m-%d(周%w)") +
+    theme(axis.text.x = element_text(angle = 90))
+image_path <- here::here("output/shanghai-growth-factor.png")
+    ggsave(image_path,
+           height = 5,
+           width = 10)
+knitr::include_graphics(image_path)
+```
